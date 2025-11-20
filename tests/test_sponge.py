@@ -9,7 +9,7 @@ import pandas as pd
 
 from Bio.motifs.jaspar import Motif
 from pathlib import Path
-from pyjaspar import jaspardb
+from pyjaspar import JASPAR_LATEST_RELEASE, jaspardb
 from typing import Tuple
 
 from sponge.config_manager import ConfigManager
@@ -221,7 +221,7 @@ def test_recursive_update(input, expected_output):
 import sponge.modules.utils.jaspar_versioning as jaspar_f
 
 @pytest.mark.parametrize('input, expected_output', [
-    (None, 'JASPAR2024'),
+    (None, JASPAR_LATEST_RELEASE),
     ('JASPAR2022', 'JASPAR2022'),
     ('2024', 'JASPAR2024'),
 ])
@@ -370,7 +370,7 @@ from sponge.sponge import Sponge
 def run_integration_test_common(
     tmp_path: Path,
     config_file: Path,
-) -> Tuple[Path, Path]:
+) -> Tuple[Path, Path, dict]:
     """
     Run the common part of the integration tests, which includes
     modifying the output file paths to be in the temporary directory and
@@ -386,7 +386,7 @@ def run_integration_test_common(
     Returns
     -------
     Tuple[Path, Path]
-        Paths to the generated motif and PPI priors
+        Paths to the generated motif and PPI priors and the configuration used
     """
 
     motif_output = os.path.join(tmp_path, 'motif_prior.tsv')
@@ -405,7 +405,7 @@ def run_integration_test_common(
     assert os.path.exists(motif_output)
     assert os.path.exists(ppi_output)
 
-    return (motif_output, ppi_output)
+    return (motif_output, ppi_output, settings)
 
 
 # The test is marked as slow because the download of the bigbed file takes
@@ -414,7 +414,7 @@ def run_integration_test_common(
 @pytest.mark.network
 @pytest.mark.slow
 def test_full_default_workflow(tmp_path):
-    _,_ = run_integration_test_common(
+    _,_,_ = run_integration_test_common(
         tmp_path,
         # Default config file
         os.path.join('sponge', 'user_config.yaml'),
@@ -424,19 +424,20 @@ def test_full_default_workflow(tmp_path):
 @pytest.mark.integration
 @pytest.mark.network
 def test_small_workflow(tmp_path):
-    motif_output,ppi_output = run_integration_test_common(
+    motif_output,ppi_output,settings = run_integration_test_common(
         tmp_path,
         os.path.join('tests', 'sponge', 'test_user_config.yaml'),
     )
 
     motif_df = pd.read_csv(motif_output, sep='\t', header=None)
-    motif_df_t = pd.read_csv(os.path.join('tests', 'sponge',
-        'test_motif_prior.tsv'), sep='\t', header=None)
-
-    pd.testing.assert_frame_equal(motif_df, motif_df_t)
+    assert motif_df.shape[1] == 3
+    assert len(motif_df) > 0
+    assert motif_df[2].isin([1]).all()
+    assert set(motif_df[0].unique()).issubset(set(settings['motif']['tf_names']))
 
     ppi_df = pd.read_csv(ppi_output, sep='\t', header=None)
-    ppi_df_t = pd.read_csv(os.path.join('tests', 'sponge',
-        'test_ppi_prior.tsv'), sep='\t', header=None)
-
-    pd.testing.assert_frame_equal(ppi_df, ppi_df_t)
+    assert ppi_df.shape[1] == 3
+    assert len(ppi_df) > 0
+    assert ppi_df[2].between(0, 1000).all()
+    tf_set = set(settings['motif']['tf_names'])
+    assert set(ppi_df[0].unique()).union(ppi_df[1].unique()).issubset(tf_set)

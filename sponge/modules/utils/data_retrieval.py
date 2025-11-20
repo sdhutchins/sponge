@@ -96,15 +96,18 @@ def download_with_progress(
         stream = open(file_path, 'wb')
         desc = file_path
 
-    # Download with a progress bar using tqdm
-    with tqdm(desc=desc, total=total, unit='iB', unit_scale=True,
-        unit_divisor=1024) as bar:
-        for data in request.iter_content(chunk_size=1024):
-            size = stream.write(data)
-            bar.update(size)
-
-    if file_path is None:
-        return BytesIO(stream.getvalue())
+    try:
+        # Download with a progress bar using tqdm
+        with tqdm(desc=desc, total=total, unit='iB', unit_scale=True,
+            unit_divisor=1024) as bar:
+            for data in request.iter_content(chunk_size=1024):
+                size = stream.write(data)
+                bar.update(size)
+        if file_path is None:
+            return BytesIO(stream.getvalue())
+    finally:
+        if file_path is not None:
+            stream.close()
 
 
 def create_xml_query(

@@ -89,6 +89,36 @@ cd sponge
 pip install -e .
 ```
 
+## Tests
+After installing SPONGE, install the testing dependency (pytest) and run the
+test suite from the repository root:
+
+```bash
+pip install pytest
+pytest -m "not slow"
+```
+
+The default marker expression skips the very time-consuming integration test
+that downloads the full JASPAR BigBed file. To run **all** tests (including
+slow, network, and integration coverage), run:
+
+```bash
+pytest
+```
+
+If you are working offline, you can skip network-dependent tests as well:
+
+```bash
+pytest -m "not slow and not network"
+```
+
+Alternatively, if you are using the optional Pixi environment defined in
+`pyproject.toml`, you can run the quick test suite with:
+
+```bash
+pixi run -e sponge-dev test
+```
+
 
 ## Usage
 SPONGE comes with a `netzoopy-sponge` command line script:
