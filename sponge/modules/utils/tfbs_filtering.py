@@ -79,23 +79,18 @@ def filter_edges(
         start,end = bed_df.loc[transcript][['Start', 'End']]
         # Load all matches in that region from the bigbed file
         motifs = bioframe.read_bigbed(bb_ref, chrom, start=start, end=end)
-        # Diagnostic: print columns on first iteration
+        # Diagnostic: print columns on first iteration (only once per process)
         if not columns_printed and len(motifs) > 0:
-            print(f'\nDEBUG: Columns found in bigbed file: {list(motifs.columns)}')
-            print(f'DEBUG: Sample row:\n{motifs.head(1)}')
+            print(f'\nDEBUG: Columns found in bigbed file: {list(motifs.columns)}', flush=True)
+            print(f'DEBUG: Sample row:\n{motifs.head(1)}', flush=True)
+            if 'TFName' not in motifs.columns:
+                print(f'DEBUG: WARNING - TFName column not found! Available columns: {list(motifs.columns)}', flush=True)
             columns_printed = True
         # Ensure the entire motif fits within range (not default behaviour)
         motifs = motifs[(motifs['start'] >= start) & (motifs['end'] <= end)]
         # Filter only the transcription factors in the list
-        filtered_motifs = motifs[motifs['name'].isin(motif_list)]
-        if len(filtered_motifs) == 0:
-            continue
-        # Check if TFName column exists
-        if 'TFName' not in filtered_motifs.columns:
-            print(f'\nERROR: TFName column not found in bigbed file!')
-            print(f'Available columns: {list(filtered_motifs.columns)}')
-            raise KeyError("Columns not found: 'TFName'. The bigbed file may not contain TFName column.")
-        max_scores = filtered_motifs.groupby('name')[['score', 'TFName']].max()
+        max_scores = motifs[motifs['name'].isin(motif_list)].groupby(
+            'name')[['score', 'TFName']].max()
         # Filter only high enough scores
         max_scores = max_scores[max_scores['score'] >= score_threshold]
         max_scores.reset_index(inplace=True)
